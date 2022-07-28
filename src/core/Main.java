@@ -98,6 +98,8 @@ public final class Main
     @FXML
     private Tooltip verboseTooltip;
     
+    private ExecutorService compiler;
+    
     private enum CompilationStatus {
         
         READY,
@@ -170,14 +172,7 @@ public final class Main
 
         verboseTooltip.setHideDelay(Duration.millis(20));
         
-        final ExecutorService compiler = Executors.newSingleThreadExecutor(runnable -> {
-
-            final var thread = new Thread(runnable);
-
-            thread.setDaemon(true);
-
-            return thread;
-        });
+        compiler = Executors.newSingleThreadExecutor();
         
         final Pattern PUBLIC_CLASS_PATTERN = Pattern.compile("public[ ]+((final)?)[ ]+class[ ]+([^{]+)");
         
@@ -298,6 +293,8 @@ public final class Main
     
     private record DisassemblyResult(String errorMessage, String disassembly) { }
     
+    private static final DisassemblyResult INTERRUPTED = new DisassemblyResult("interrupted", "");;
+    
     private static DisassemblyResult compile(final boolean verbose, final String filename, final String javaCode) {
         
         final var errorFile = TEMPORARY_FOLDER.resolve("error.txt").toFile();
@@ -311,6 +308,12 @@ public final class Main
         try {
             
             Files.writeString(TEMPORARY_FOLDER.resolve(javaFile), javaCode, StandardOpenOption.WRITE, StandardOpenOption.CREATE);
+
+            if (Thread.interrupted()) {
+
+                return INTERRUPTED;
+
+            }
             
             final int compilationResult = new ProcessBuilder()
                     .directory(TEMPORARY_FOLDER.toFile())
@@ -325,6 +328,12 @@ public final class Main
             if (compilationResult != 0) {
                 
                 return new DisassemblyResult(Files.readString(errorFile.toPath()), "");
+                
+            }
+            
+            if (Thread.interrupted()) {
+                
+                return INTERRUPTED;
                 
             }
             
@@ -346,6 +355,12 @@ public final class Main
                     .start()
                     .waitFor();
 
+            if (Thread.interrupted()) {
+
+                return INTERRUPTED;
+
+            }
+            
             if (disassemblyResult != 0) {
 
                 return new DisassemblyResult(Files.readString(errorFile.toPath()), "");
@@ -354,9 +369,13 @@ public final class Main
             
             return new DisassemblyResult(null, Files.readString(Path.of(asmFile)));
             
-        } catch (final IOException | InterruptedException e) {
+        } catch (final IOException e) {
             
             throw new RuntimeException(e);
+            
+        } catch (final InterruptedException e) {
+
+            return INTERRUPTED;
             
         } finally {
             
@@ -367,6 +386,13 @@ public final class Main
             
         }
 
+    }
+
+    @Override
+    public void stop() {
+        
+        compiler.shutdownNow();
+        
     }
     
 }

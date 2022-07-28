@@ -1,24 +1,64 @@
 #java-editor {
-    
+
     -fx-text-fill: #babdc2;
+
+}
+
+#java-editor .content {
+
+    -fx-background-color: #42454a;
+
+}
+
+#java-editor .scroll-pane .scroll-bar {
+    
+    -fx-background-color: #babdc2;
+    -fx-background-radius: 0, 0, 0, 0
     
 }
 
-.content {
+#java-editor .scroll-pane .scroll-bar .thumb {
 
-    -fx-background-color: #42454a;
+    -fx-background-color: rgba(59, 55, 55, 0.51);
+    -fx-background-radius: 30, 30, 30, 30;
+
+}
+
+#java-editor .scroll-pane .corner {
+
+    -fx-background-color: #babdc2;
 
 }
 
 #bytecode-viewer {
 
     -fx-text-fill: #babdc2;
-    
+
 }
 
-.content {
+#bytecode-viewer .content {
 
     -fx-background-color: #42454a;
+
+}
+
+#bytecode-viewer .scroll-pane .scroll-bar {
+
+    -fx-background-color: #babdc2;
+    -fx-background-radius: 0, 0, 0, 0
+
+}
+
+#bytecode-viewer .scroll-pane .scroll-bar .thumb {
+
+    -fx-background-color: rgba(59, 55, 55, 0.51);
+    -fx-background-radius: 30, 30, 30, 30;
+
+}
+
+#bytecode-viewer .scroll-pane .corner {
+
+    -fx-background-color: #babdc2;
 
 }
 
