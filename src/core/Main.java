@@ -10,11 +10,14 @@ import javafx.fxml.FXMLLoader;
 import javafx.scene.Group;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
+import javafx.scene.control.CheckBox;
 import javafx.scene.control.ProgressIndicator;
 import javafx.scene.control.Slider;
 import javafx.scene.control.TextArea;
 import javafx.scene.control.Tooltip;
 import javafx.scene.input.KeyCode;
+import javafx.scene.input.KeyCodeCombination;
+import javafx.scene.input.KeyCombination;
 import javafx.scene.input.KeyEvent;
 import javafx.stage.Stage;
 import javafx.util.Duration;
@@ -24,6 +27,8 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.regex.Matcher;
@@ -52,6 +57,8 @@ public final class Main
         
         primaryStage.setScene(scene);
         
+        primaryStage.setTitle("Java Bytecode Viewer");
+        
         primaryStage.centerOnScreen();
         
         primaryStage.show();
@@ -72,6 +79,9 @@ public final class Main
     private boolean keyArmed = false;
     
     @FXML
+    private CheckBox verboseCheckBox;
+    
+    @FXML
     private ProgressIndicator compileProgress;
     
     @FXML
@@ -83,6 +93,9 @@ public final class Main
     @FXML
     private Tooltip compileButtonTooltip;
     
+    @FXML
+    private Tooltip verboseTooltip;
+    
     private enum CompilationStatus {
         
         READY,
@@ -93,7 +106,7 @@ public final class Main
     
     private final ObjectProperty<CompilationStatus> compilationStatusProperty = new SimpleObjectProperty<>(CompilationStatus.READY);
     
-    private boolean textDirty = true;
+    private boolean inputDirty = true;
     
     @FXML
     private void initialize() {
@@ -125,9 +138,7 @@ public final class Main
                     
                 }""");
         
-        javaEditor.textProperty().addListener(observable -> textDirty = true);
-        
-        compileProgress.visibleProperty().bind(compilationStatusProperty.isEqualTo(CompilationStatus.RUNNING));
+        javaEditor.textProperty().addListener(observable -> inputDirty = true);
         
         scene.addEventFilter(KeyEvent.KEY_PRESSED, keyEvent -> {
             
@@ -144,7 +155,19 @@ public final class Main
             }
             
         });
+        
+        verboseCheckBox.selectedProperty().addListener(observable -> inputDirty = true);
+        
+        scene.getAccelerators().put(new KeyCodeCombination(KeyCode.W, KeyCombination.CONTROL_ANY), () -> {
+            
+            verboseCheckBox.setSelected(!verboseCheckBox.isSelected());
+            
+        });
 
+        verboseTooltip.setShowDelay(Duration.millis(275));
+
+        verboseTooltip.setHideDelay(Duration.millis(20));
+        
         final ExecutorService compiler = Executors.newSingleThreadExecutor(runnable -> {
 
             final var thread = new Thread(runnable);
@@ -158,10 +181,12 @@ public final class Main
         
         final Runnable startCompilation = () -> {
 
-            if (textDirty
+            if (inputDirty
                     && (compilationStatusProperty.get() == CompilationStatus.READY)) {
                 
                 compilationStatusProperty.set(CompilationStatus.RUNNING);
+                
+                final boolean verbose = verboseCheckBox.isSelected();
                 
                 compiler.submit(() -> {
                     
@@ -185,7 +210,7 @@ public final class Main
                             
                         }
 
-                        final DisassemblyResult disassemblyResult = compile(publicClassName, javaCode);
+                        final DisassemblyResult disassemblyResult = compile(verbose, publicClassName, javaCode);
                         
                         if (disassemblyResult.errorMessage != null) {
                             
@@ -194,8 +219,8 @@ public final class Main
                         } else {
 
                             compilationResult = disassemblyResult.disassembly;
-                            
-                            textDirty = false;
+
+                            inputDirty = false;
                             
                         }
                         
@@ -248,6 +273,8 @@ public final class Main
             }
             
         };
+
+        compileProgress.visibleProperty().bind(compilationStatusProperty.isEqualTo(CompilationStatus.RUNNING));
         
         compilationStatusProperty.addListener((observable, oldCompilationStatus, newCompilationStatus) -> {
             
@@ -269,7 +296,7 @@ public final class Main
     
     private record DisassemblyResult(String errorMessage, String disassembly) { }
     
-    private static DisassemblyResult compile(final String filename, final String javaCode) {
+    private static DisassemblyResult compile(final boolean verbose, final String filename, final String javaCode) {
         
         final var errorFile = TEMPORARY_FOLDER.resolve("error.txt").toFile();
         
@@ -299,13 +326,19 @@ public final class Main
                 
             }
             
+            final List<String> disassembleCommand = new ArrayList<>(List.of("javap", "-c"));
+            
+            if (verbose) {
+                
+                disassembleCommand.add("-v");
+                
+            }
+            
+            disassembleCommand.add(classFile);
+            
             final int disassemblyResult = new ProcessBuilder()
                     .directory(TEMPORARY_FOLDER.toFile())
-                    .command(
-                            "javap",
-                            "-v",
-                            classFile
-                    )
+                    .command(disassembleCommand)
                     .redirectError(errorFile)
                     .redirectOutput(new File(asmFile))
                     .start()
