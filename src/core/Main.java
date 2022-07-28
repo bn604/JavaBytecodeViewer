@@ -13,7 +13,6 @@ import javafx.scene.control.Button;
 import javafx.scene.control.ProgressIndicator;
 import javafx.scene.control.Slider;
 import javafx.scene.control.TextArea;
-import javafx.scene.control.TextField;
 import javafx.scene.control.Tooltip;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
@@ -27,7 +26,8 @@ import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.function.Consumer;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public final class Main
         extends Application {
@@ -67,9 +67,6 @@ public final class Main
     private TextArea javaEditor;
     
     @FXML
-    private TextField filenameTextField;
-    
-    @FXML
     private TextArea bytecodeViewer;
     
     private boolean keyArmed = false;
@@ -103,11 +100,7 @@ public final class Main
         
         javaEditorFontSlider.valueProperty().addListener((observable, oldValue, newValue) -> {
             
-            final String fontSizeStyle = "-fx-font-size: " + (newValue.doubleValue() * 80 + 10) + ";";
-            
-            javaEditor.setStyle(fontSizeStyle);
-            
-            filenameTextField.setStyle(fontSizeStyle);
+            javaEditor.setStyle("-fx-font-size: " + (newValue.doubleValue() * 80 + 10) + ";");
             
         });
 
@@ -133,8 +126,6 @@ public final class Main
                 }""");
         
         javaEditor.textProperty().addListener(observable -> textDirty = true);
-        
-        filenameTextField.setText("HelloWorld");
         
         compileProgress.visibleProperty().bind(compilationStatusProperty.isEqualTo(CompilationStatus.RUNNING));
         
@@ -163,19 +154,12 @@ public final class Main
             return thread;
         });
         
+        final Pattern PUBLIC_CLASS_PATTERN = Pattern.compile("public[ ]+((final)?)[ ]+class[ ]+([^{]+)");
+        
         final Runnable startCompilation = () -> {
 
             if (textDirty
                     && (compilationStatusProperty.get() == CompilationStatus.READY)) {
-                
-                final String filename = filenameTextField.getText();
-
-                if (filename.isEmpty()
-                        || filename.isBlank()) {
-
-                    return;
-
-                }
                 
                 compilationStatusProperty.set(CompilationStatus.RUNNING);
                 
@@ -185,9 +169,35 @@ public final class Main
                     
                     try {
 
-                        compilationResult = compile(filename, javaEditor.getText());
+                        final String javaCode = javaEditor.getText();
                         
-                        textDirty = false;
+                        final Matcher matcher = PUBLIC_CLASS_PATTERN.matcher(javaCode);
+                        
+                        final String publicClassName;
+                        
+                        if (matcher.find()) {
+
+                            publicClassName = matcher.group(3).trim();
+                            
+                        } else {
+                            
+                            throw new RuntimeException("could not determine name of main class");
+                            
+                        }
+
+                        final DisassemblyResult disassemblyResult = compile(publicClassName, javaCode);
+                        
+                        if (disassemblyResult.errorMessage != null) {
+                            
+                            compilationResult = disassemblyResult.errorMessage;
+                            
+                        } else {
+
+                            compilationResult = disassemblyResult.disassembly;
+                            
+                            textDirty = false;
+                            
+                        }
                         
                     } finally {
                         
@@ -233,7 +243,7 @@ public final class Main
             @Override
             public void handle(final long now) {
                 
-                compileProgress.setRotate(compileProgress.getRotate() + 1);
+                compileProgress.setRotate(compileProgress.getRotate() + 1.2);
                 
             }
             
@@ -255,59 +265,70 @@ public final class Main
         
     }
     
-    private static String compile(final String filename, final String javaCode) {
+    private static final Path TEMPORARY_FOLDER = Path.of("res/temp/");
+    
+    private record DisassemblyResult(String errorMessage, String disassembly) { }
+    
+    private static DisassemblyResult compile(final String filename, final String javaCode) {
+        
+        final var errorFile = TEMPORARY_FOLDER.resolve("error.txt").toFile();
+        
+        final String javaFile = filename + ".java";
+        
+        final String classFile = filename + ".class";
+
+        final String asmFile = "res/temp/" + filename + ".asm";
         
         try {
             
-            final String javaFile = filename + ".java";
+            Files.writeString(TEMPORARY_FOLDER.resolve(javaFile), javaCode, StandardOpenOption.WRITE, StandardOpenOption.CREATE);
             
-            Files.writeString(Path.of("res/temp/" + javaFile), javaCode, StandardOpenOption.WRITE, StandardOpenOption.CREATE);
-
-            new ProcessBuilder()
-                    .directory(new File("res/temp/"))
+            final int compilationResult = new ProcessBuilder()
+                    .directory(TEMPORARY_FOLDER.toFile())
                     .command(
                             "javac",
                             javaFile
                     )
+                    .redirectError(errorFile)
                     .start()
                     .waitFor();
             
-            final String classFile = filename + ".class";
+            if (compilationResult != 0) {
+                
+                return new DisassemblyResult(Files.readString(errorFile.toPath()), "");
+                
+            }
             
-            final String asmFile = "res/temp/" + filename + ".asm";
-            
-            new ProcessBuilder()
-                    .directory(new File("res/temp/"))
+            final int disassemblyResult = new ProcessBuilder()
+                    .directory(TEMPORARY_FOLDER.toFile())
                     .command(
                             "javap",
                             "-v",
                             classFile
                     )
+                    .redirectError(errorFile)
                     .redirectOutput(new File(asmFile))
                     .start()
                     .waitFor();
+
+            if (disassemblyResult != 0) {
+
+                return new DisassemblyResult(Files.readString(errorFile.toPath()), "");
+
+            }
             
-            final String assembly = Files.readString(Path.of(asmFile));
-            
-            final Consumer<String> deleteFile = deleteFilename -> {
-                
-                if (!new File(deleteFilename).delete()) {
-                    
-                    throw new RuntimeException("failed to delete file " + deleteFilename);
-                    
-                }
-                
-            };
-            
-            deleteFile.accept("res/temp/" + javaFile);
-            deleteFile.accept("res/temp/" + classFile);
-            deleteFile.accept(asmFile);
-            
-            return assembly;
+            return new DisassemblyResult(null, Files.readString(Path.of(asmFile)));
             
         } catch (final IOException | InterruptedException e) {
             
             throw new RuntimeException(e);
+            
+        } finally {
+            
+            errorFile.delete();
+            TEMPORARY_FOLDER.resolve(javaFile).toFile().delete();
+            TEMPORARY_FOLDER.resolve(classFile).toFile().delete();
+            new File(asmFile).delete();
             
         }
 
