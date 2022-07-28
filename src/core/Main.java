@@ -11,11 +11,14 @@ import javafx.scene.Group;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
 import javafx.scene.control.ProgressIndicator;
+import javafx.scene.control.Slider;
 import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
+import javafx.scene.control.Tooltip;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
 import javafx.stage.Stage;
+import javafx.util.Duration;
 
 import java.io.File;
 import java.io.IOException;
@@ -74,6 +77,15 @@ public final class Main
     @FXML
     private ProgressIndicator compileProgress;
     
+    @FXML
+    private Slider javaEditorFontSlider;
+    
+    @FXML
+    private Slider bytecodeViewerFontSlider;
+    
+    @FXML
+    private Tooltip compileButtonTooltip;
+    
     private enum CompilationStatus {
         
         READY,
@@ -88,6 +100,26 @@ public final class Main
     
     @FXML
     private void initialize() {
+        
+        javaEditorFontSlider.valueProperty().addListener((observable, oldValue, newValue) -> {
+            
+            final String fontSizeStyle = "-fx-font-size: " + (newValue.doubleValue() * 80 + 10) + ";";
+            
+            javaEditor.setStyle(fontSizeStyle);
+            
+            filenameTextField.setStyle(fontSizeStyle);
+            
+        });
+
+        bytecodeViewerFontSlider.valueProperty().addListener((observable, oldValue, newValue) -> {
+
+            bytecodeViewer.setStyle("-fx-font-size: " + (newValue.doubleValue() * 80 + 10) + ";");
+
+        });
+
+        compileButtonTooltip.setShowDelay(Duration.millis(275));
+        
+        compileButtonTooltip.setHideDelay(Duration.millis(20));
         
         javaEditor.setText("""
                 public final class HelloWorld {
