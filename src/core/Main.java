@@ -55,6 +55,8 @@ public final class Main
         
         scene.setRoot(fxmlLoader.load());
         
+        scene.getStylesheets().add(new File("res/style/style.css").toURI().toURL().toExternalForm());
+        
         primaryStage.setScene(scene);
         
         primaryStage.setTitle("Java Bytecode Viewer");

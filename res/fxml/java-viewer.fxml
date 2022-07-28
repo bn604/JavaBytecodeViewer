@@ -15,13 +15,13 @@
 <?import javafx.scene.layout.HBox?>
 <?import javafx.scene.layout.StackPane?>
 
-<BorderPane style="-fx-font-family: Galvji; -fx-background-color: #f6f7f5;" xmlns="http://javafx.com/javafx/18" xmlns:fx="http://javafx.com/fxml/1">
+<BorderPane style="-fx-font-family: Galvji; -fx-background-color: #6e7175;" xmlns="http://javafx.com/javafx/18" xmlns:fx="http://javafx.com/fxml/1">
    <center>
       <SplitPane dividerPositions="0.5">
          <items>
-            <BorderPane>
-               <center>
-                  <TextArea fx:id="javaEditor" prefHeight="200.0" prefWidth="200.0" promptText="Write Java code here ...">
+            <StackPane style="-fx-background-color: #6e7175 #6e7175;">
+               <children>
+                  <TextArea id="java-editor" fx:id="javaEditor" prefHeight="200.0" prefWidth="200.0" promptText="Write Java code here ...">
                      <contextMenu>
                         <ContextMenu>
                           <items>
@@ -32,21 +32,33 @@
                               </CustomMenuItem>
                           </items>
                         </ContextMenu>
-                     </contextMenu></TextArea>
-               </center>
-            </BorderPane>
-            <TextArea fx:id="bytecodeViewer" editable="false" prefHeight="200.0" prefWidth="200.0" promptText="Click &quot;Disassemble&quot; or press Control-A to disassemble Java code">
-               <contextMenu>
-                  <ContextMenu>
-                    <items>
-                        <CustomMenuItem mnemonicParsing="false" text="Font Size">
-                           <content>
-                              <Slider fx:id="bytecodeViewerFontSlider" blockIncrement="0.01" max="1.0" />
-                           </content>
-                        </CustomMenuItem>
-                    </items>
-                  </ContextMenu>
-               </contextMenu></TextArea>
+                     </contextMenu>
+                     <StackPane.margin>
+                        <Insets bottom="7.0" left="7.0" right="7.0" top="7.0" />
+                     </StackPane.margin>
+                  </TextArea>
+               </children>
+            </StackPane>
+            <StackPane style="-fx-background-color: #6e7175 #6e7175;">
+               <children>
+                  <TextArea id="bytecode-viewer" fx:id="bytecodeViewer" editable="false" prefHeight="200.0" prefWidth="200.0" promptText="Click &quot;Disassemble&quot; or press Control-A to disassemble Java code">
+                     <contextMenu>
+                        <ContextMenu>
+                          <items>
+                              <CustomMenuItem mnemonicParsing="false" text="Font Size">
+                                 <content>
+                                    <Slider fx:id="bytecodeViewerFontSlider" blockIncrement="0.01" max="1.0" />
+                                 </content>
+                              </CustomMenuItem>
+                          </items>
+                        </ContextMenu>
+                     </contextMenu>
+                     <StackPane.margin>
+                        <Insets bottom="7.0" left="7.0" right="7.0" top="7.0" />
+                     </StackPane.margin>
+                  </TextArea>
+               </children>
+            </StackPane>
          </items>
       </SplitPane>
    </center>

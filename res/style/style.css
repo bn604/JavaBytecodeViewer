@@ -1,0 +1,29 @@
+#java-editor {
+    
+    -fx-text-fill: #babdc2;
+    
+}
+
+.content {
+
+    -fx-background-color: #42454a;
+
+}
+
+#bytecode-viewer {
+
+    -fx-text-fill: #babdc2;
+    
+}
+
+.content {
+
+    -fx-background-color: #42454a;
+
+}
+
+.split-pane .split-pane-divider {
+    
+    -fx-background-color: #babdc2;
+    
+}
