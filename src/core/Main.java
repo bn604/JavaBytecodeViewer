@@ -7,6 +7,7 @@ import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
+import javafx.geometry.Insets;
 import javafx.scene.Group;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
@@ -14,11 +15,14 @@ import javafx.scene.control.CheckBox;
 import javafx.scene.control.ProgressIndicator;
 import javafx.scene.control.Slider;
 import javafx.scene.control.TextArea;
+import javafx.scene.control.TextFormatter;
+import javafx.scene.control.ToggleButton;
 import javafx.scene.control.Tooltip;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyCodeCombination;
 import javafx.scene.input.KeyCombination;
 import javafx.scene.input.KeyEvent;
+import javafx.scene.layout.StackPane;
 import javafx.stage.Stage;
 import javafx.util.Duration;
 
@@ -47,6 +51,10 @@ public final class Main
     public void start(final Stage primaryStage)
             throws IOException {
         
+        binaryViewer = FXMLLoader.load(Path.of("res/fxml/binary-viewer.fxml").toUri().toURL());
+
+        StackPane.setMargin(binaryViewer, new Insets(7.0));
+        
         final var fxmlLoader = new FXMLLoader(Path.of("res/fxml/java-viewer.fxml").toUri().toURL());
         
         fxmlLoader.setController(this);
@@ -59,7 +67,7 @@ public final class Main
         
         primaryStage.setScene(scene);
         
-        primaryStage.setTitle("Java Bytecode Viewer");
+        primaryStage.setTitle("Bytecode Viewer");
         
         primaryStage.centerOnScreen();
         
@@ -68,6 +76,9 @@ public final class Main
     }
     
     private Scene scene;
+    
+    @FXML
+    private TextArea binaryViewer;
     
     @FXML
     private Button compileButton;
@@ -85,6 +96,12 @@ public final class Main
     
     @FXML
     private ProgressIndicator compileProgress;
+    
+    @FXML
+    private StackPane disassemblyArea;
+    
+    @FXML
+    private ToggleButton binaryButton;
     
     @FXML
     private Slider javaEditorFontSlider;
@@ -112,8 +129,78 @@ public final class Main
     
     private boolean inputDirty = true;
     
+    private static final String DEFAULT_CODE = """
+                public final class HelloWorld {
+                    
+                    public static void main(final String[] args) {
+                        
+                        System.out.println("Hello, world!");
+                        
+                    }
+                    
+                }""";
+    
     @FXML
     private void initialize() {
+        
+        final ExecutorService executorService = Executors.newSingleThreadExecutor(runnable -> {
+            
+            final var thread = new Thread(runnable);
+            
+            thread.setDaemon(true);
+            
+            return thread;
+        });
+        
+        executorService.submit(() -> {
+
+            String code = DEFAULT_CODE;
+
+            try {
+
+                code = Files.readString(Path.of("res/save/save.txt"));
+                
+            } catch (final IOException ignored) { }
+            
+            final String finalCode = code;
+            
+            Platform.runLater(() -> {
+                
+                javaEditor.setText(finalCode);
+                
+                javaEditor.setDisable(false);
+                
+            });
+            
+        });
+        
+        executorService.shutdown();
+        
+        Platform.runLater(() -> compileButton.requestFocus());
+        
+        javaEditor.setDisable(true);
+        
+        binaryButton.setText("ABCD");
+        
+        binaryButton.selectedProperty().addListener((observable, oldValue, newValue) -> {
+            
+            if (newValue) {
+                
+                disassemblyArea.getChildren().set(0, binaryViewer);
+                
+                binaryButton.setText("0xFF");
+                
+            } else {
+
+                disassemblyArea.getChildren().set(0, bytecodeViewer);
+
+                binaryButton.setText("ABCD");
+                
+            }
+            
+        });
+        
+        javaEditor.setStyle("-fx-font-size: " + (javaEditorFontSlider.valueProperty().doubleValue() * 80 + 10) + ";");
         
         javaEditorFontSlider.valueProperty().addListener((observable, oldValue, newValue) -> {
             
@@ -121,6 +208,8 @@ public final class Main
             
         });
 
+        bytecodeViewer.setStyle("-fx-font-size: " + (bytecodeViewerFontSlider.valueProperty().doubleValue() * 80 + 10) + ";");
+        
         bytecodeViewerFontSlider.valueProperty().addListener((observable, oldValue, newValue) -> {
 
             bytecodeViewer.setStyle("-fx-font-size: " + (newValue.doubleValue() * 80 + 10) + ";");
@@ -131,16 +220,7 @@ public final class Main
         
         compileButtonTooltip.setHideDelay(Duration.millis(20));
         
-        javaEditor.setText("""
-                public final class HelloWorld {
-                    
-                    public static void main(final String[] args) {
-                        
-                        System.out.println("Hello, world!");
-                        
-                    }
-                    
-                }""");
+        javaEditor.setTextFormatter(new TextFormatter<>(new CodeEditor()));
         
         javaEditor.textProperty().addListener(observable -> inputDirty = true);
         
@@ -189,6 +269,8 @@ public final class Main
                     
                     String compilationResult = "";
                     
+                    String binaryResult = "";
+                    
                     try {
 
                         final String javaCode = javaEditor.getText();
@@ -216,7 +298,9 @@ public final class Main
                         } else {
 
                             compilationResult = disassemblyResult.disassembly;
-
+                            
+                            binaryResult = disassemblyResult.binary;
+                            
                             inputDirty = false;
                             
                         }
@@ -225,9 +309,13 @@ public final class Main
                         
                         final String bytecode = compilationResult;
                         
+                        final String binary = binaryResult;
+                        
                         Platform.runLater(() -> {
 
                             bytecodeViewer.setText(bytecode);
+                            
+                            binaryViewer.setText(binary);
 
                             compilationStatusProperty.set(CompilationStatus.READY);
 
@@ -291,9 +379,9 @@ public final class Main
     
     private static final Path TEMPORARY_FOLDER = Path.of("res/temp/");
     
-    private record DisassemblyResult(String errorMessage, String disassembly) { }
+    private record DisassemblyResult(String errorMessage, String disassembly, String binary) { }
     
-    private static final DisassemblyResult INTERRUPTED = new DisassemblyResult("interrupted", "");;
+    private static final DisassemblyResult INTERRUPTED = new DisassemblyResult("interrupted", "", "");
     
     private static DisassemblyResult compile(final boolean verbose, final String filename, final String javaCode) {
         
@@ -327,7 +415,7 @@ public final class Main
             
             if (compilationResult != 0) {
                 
-                return new DisassemblyResult(Files.readString(errorFile.toPath()), "");
+                return new DisassemblyResult(Files.readString(errorFile.toPath()), "", "");
                 
             }
             
@@ -335,6 +423,74 @@ public final class Main
                 
                 return INTERRUPTED;
                 
+            }
+
+            final byte[] binary = Files.readAllBytes(TEMPORARY_FOLDER.resolve(classFile));
+            
+            if (Thread.interrupted()) {
+
+                return INTERRUPTED;
+
+            }
+            
+            final class ByteIterator {
+                
+                private final byte[] bytes;
+                
+                private int index = 0;
+                
+                public ByteIterator(final byte[] bytes) {
+                    
+                    this.bytes = bytes;
+                    
+                }
+
+                int remaining() {
+
+                    return (bytes.length - index);
+                }
+                
+                private String nextHex() {
+                    
+                    return Integer.toHexString(Byte.toUnsignedInt(bytes[index++]));
+                }
+                
+            }
+            
+            final var byteIterator = new ByteIterator(binary);
+            
+            final var binaryString = new StringBuilder();
+            
+            while (byteIterator.remaining() != 0) {
+                
+                final int length = Math.min(byteIterator.remaining(), 15);
+                
+                for (int i = 0; i < length; i++) {
+                    
+                    final String hex = byteIterator.nextHex().toUpperCase();
+                    
+                    binaryString.append("0x");
+                    
+                    if (hex.length() == 1) {
+                        
+                        binaryString.append("0");
+                        
+                    }
+                    
+                    binaryString
+                            .append(hex)
+                            .append(" ");
+                    
+                }
+                
+                binaryString.append("\n");
+                
+            }
+
+            if (Thread.interrupted()) {
+
+                return INTERRUPTED;
+
             }
             
             final List<String> disassembleCommand = new ArrayList<>(List.of("javap", "-c"));
@@ -363,11 +519,11 @@ public final class Main
             
             if (disassemblyResult != 0) {
 
-                return new DisassemblyResult(Files.readString(errorFile.toPath()), "");
+                return new DisassemblyResult(Files.readString(errorFile.toPath()), "", "");
 
             }
             
-            return new DisassemblyResult(null, Files.readString(Path.of(asmFile)));
+            return new DisassemblyResult(null, Files.readString(Path.of(asmFile)), binaryString.toString());
             
         } catch (final IOException e) {
             
@@ -387,9 +543,13 @@ public final class Main
         }
 
     }
-
+    
     @Override
-    public void stop() {
+    public void stop()
+            throws IOException {
+        
+        Files.writeString(Path.of("res/save/save.txt"), javaEditor.getText(), StandardOpenOption.WRITE, StandardOpenOption.CREATE,
+                StandardOpenOption.TRUNCATE_EXISTING);
         
         compiler.shutdownNow();
         

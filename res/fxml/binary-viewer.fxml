@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.TextArea?>
+
+
+<TextArea fx:id="binaryViewer" editable="false" promptText="Click &quot;Disassemble&quot; or press Control-A to disassemble Java code" styleClass="code-viewer" xmlns="http://javafx.com/javafx/18" xmlns:fx="http://javafx.com/fxml/1" />

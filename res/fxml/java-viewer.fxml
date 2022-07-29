@@ -10,24 +10,25 @@
 <?import javafx.scene.control.Slider?>
 <?import javafx.scene.control.SplitPane?>
 <?import javafx.scene.control.TextArea?>
+<?import javafx.scene.control.ToggleButton?>
 <?import javafx.scene.control.Tooltip?>
 <?import javafx.scene.layout.BorderPane?>
 <?import javafx.scene.layout.HBox?>
 <?import javafx.scene.layout.StackPane?>
 
-<BorderPane style="-fx-font-family: Galvji; -fx-background-color: #6e7175;" xmlns="http://javafx.com/javafx/18" xmlns:fx="http://javafx.com/fxml/1">
+<BorderPane id="root" style="-fx-font-family: Galvji; -fx-background-color: #6e7175;" xmlns="http://javafx.com/javafx/18" xmlns:fx="http://javafx.com/fxml/1">
    <center>
-      <SplitPane dividerPositions="0.5">
+      <SplitPane id="code-area" dividerPositions="0.5">
          <items>
             <StackPane style="-fx-background-color: #6e7175 #6e7175;">
                <children>
-                  <TextArea id="java-editor" fx:id="javaEditor" prefHeight="200.0" prefWidth="200.0" promptText="Write Java code here ...">
+                  <TextArea id="java-editor" fx:id="javaEditor" promptText="Write Java code here ..." styleClass="code-viewer">
                      <contextMenu>
                         <ContextMenu>
                           <items>
                               <CustomMenuItem mnemonicParsing="false" text="Font Size">
                                  <content>
-                                    <Slider fx:id="javaEditorFontSlider" blockIncrement="0.01" max="1.0" />
+                                    <Slider fx:id="javaEditorFontSlider" blockIncrement="0.01" max="1.0" value="0.05" />
                                  </content>
                               </CustomMenuItem>
                           </items>
@@ -36,18 +37,21 @@
                      <StackPane.margin>
                         <Insets bottom="7.0" left="7.0" right="7.0" top="7.0" />
                      </StackPane.margin>
+                     <rotationAxis>
+                        <Point3D y="1.0" />
+                     </rotationAxis>
                   </TextArea>
                </children>
             </StackPane>
-            <StackPane style="-fx-background-color: #6e7175 #6e7175;">
+            <StackPane fx:id="disassemblyArea" style="-fx-background-color: #6e7175 #6e7175;">
                <children>
-                  <TextArea id="bytecode-viewer" fx:id="bytecodeViewer" editable="false" prefHeight="200.0" prefWidth="200.0" promptText="Click &quot;Disassemble&quot; or press Control-A to disassemble Java code">
+                  <TextArea id="bytecode-viewer" fx:id="bytecodeViewer" editable="false" promptText="Click &quot;Disassemble&quot; or press Control-A to disassemble Java code" styleClass="code-viewer">
                      <contextMenu>
                         <ContextMenu>
                           <items>
                               <CustomMenuItem mnemonicParsing="false" text="Font Size">
                                  <content>
-                                    <Slider fx:id="bytecodeViewerFontSlider" blockIncrement="0.01" max="1.0" />
+                                    <Slider fx:id="bytecodeViewerFontSlider" blockIncrement="0.01" max="1.0" value="0.05" />
                                  </content>
                               </CustomMenuItem>
                           </items>
@@ -57,6 +61,11 @@
                         <Insets bottom="7.0" left="7.0" right="7.0" top="7.0" />
                      </StackPane.margin>
                   </TextArea>
+                  <ToggleButton fx:id="binaryButton" mnemonicParsing="false" opacity="0.4" style="-fx-background-radius: 5;" textAlignment="CENTER" textFill="#805c5c" textOverrun="CLIP" StackPane.alignment="BOTTOM_RIGHT">
+                     <StackPane.margin>
+                        <Insets bottom="9.0" left="9.0" right="9.0" top="9.0" />
+                     </StackPane.margin>
+                  </ToggleButton>
                </children>
             </StackPane>
          </items>
